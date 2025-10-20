@@ -1,0 +1,30 @@
+const pruefidentifikatoren = {
+  '44001': 'Anmeldung NN',
+  '44002': 'Bestätigung Anmeldung',
+  '44003': 'Ablehnung Anmeldung',
+  '44004': 'Abmeldung NN',
+  '44005': 'Bestätigung Abmeldung',
+  '44006': 'Ablehnung Abmeldung',
+  '44016': 'Kündigung beim alten Lieferanten',
+  '44017': 'Bestätigung Kündigung',
+  '44018': 'Ablehnung Kündigung',
+  '44112': 'Nicht bila.rel. Änderung vom NB',
+  '44123': 'Bila.rel. Änderung vom NB mit Abhängigkeiten',
+  '13002': 'Zählerstand',
+  '13008': 'Lastgang',
+  '13009': 'Energiemenge',
+  '13007': 'Gasbeschaffenheit',
+  '13006': 'Messwert Storno',
+  '17101': 'Anfrage Stammdaten Marktlokation',
+  '17102': 'Anfrage von Werten',
+  '19101': 'Ablehnung der Anfrage Stammdaten',
+  '19102': 'Ablehnung der Anfrage Werte',
+  '31001': 'Abschlagsrechnung',
+  '31002': 'NN-Rechnung',
+  '31003': 'WiM-Rechnung',
+  '31004': 'Stornorechnung',
+  '33001': 'Bestätigung',
+  '33002': 'Abweisung'
+};
+
+module.exports = pruefidentifikatoren;

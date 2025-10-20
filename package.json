@@ -1,0 +1,48 @@
+{
+  "name": "edifact-json-transformer",
+  "version": "1.0.0",
+  "description": "Robuste EDIFACT zu JSON Transformation für die deutsche Marktkommunikation (MaKo)",
+  "main": "index.js",
+  "files": [
+    "src",
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src __tests__"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/energychain/edifact-to-json-transformer.git"
+  },
+  "keywords": [
+    "edifact",
+    "json",
+    "energy",
+    "mako",
+    "gpke",
+    "geligas",
+    "wim",
+    "stromdao"
+  ],
+  "author": "STROMDAO GmbH <info@stromdao.de>",
+  "funding": {
+    "type": "organization",
+    "url": "https://stromdao.de/"
+  },
+  "homepage": "https://stromhaltig.de/app/",
+  "bugs": {
+    "url": "https://github.com/energychain/edifact-to-json-transformer/issues"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0"
+  }
+}

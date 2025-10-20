@@ -56,6 +56,141 @@ console.log(convertToNeo4jCypher(edifactMessage));
 
 > Hinweis: Unter `./tmp/` liegen lokale Beispieldokumente für manuelle Tests. Der Ordner ist bereits von Git und dem npm-Package ausgeschlossen und darf ausschließlich lokal verwendet werden.
 
+## Praxis-Beispiele
+
+### Error-Handling mit Retry-Logic
+
+```js
+const { EdifactTransformer, validateAHB } = require('edifact-json-transformer');
+
+async function processWithRetry(edifact, maxRetries = 3) {
+  // Pre-Validation
+  const validation = validateAHB(edifact);
+  if (!validation.is_valid) {
+    console.error('Validierung fehlgeschlagen:', validation.errors);
+    return { success: false, errors: validation.errors };
+  }
+
+  const transformer = new EdifactTransformer({
+    enableAHBValidation: true
+  });
+
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    try {
+      const result = transformer.transform(edifact);
+      
+      // Prüfe Validierung im Result
+      if (result.validation?.is_valid === false) {
+        return { 
+          success: false, 
+          errors: result.validation.errors,
+          warnings: result.validation.warnings 
+        };
+      }
+
+      return { success: true, data: result };
+
+    } catch (error) {
+      attempt++;
+      if (attempt >= maxRetries) {
+        console.error(`Fehler nach ${attempt} Versuchen:`, error.message);
+        throw error;
+      }
+      // Exponential backoff
+      await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt)));
+    }
+  }
+}
+
+// Verwendung
+processWithRetry(edifactMessage)
+  .then(result => {
+    if (result.success) {
+      console.log('✓ Erfolgreich:', result.data.metadata.message_type);
+    } else {
+      console.error('✗ Validierung fehlgeschlagen:', result.errors);
+    }
+  })
+  .catch(error => console.error('✗ Kritischer Fehler:', error));
+```
+
+### Batch-Verarbeitung aus SFTP
+
+```js
+const { EdifactTransformer } = require('edifact-json-transformer');
+const Client = require('ssh2-sftp-client');
+
+async function processSFTPInbox() {
+  const sftp = new Client();
+  const transformer = new EdifactTransformer({ enableAHBValidation: true });
+
+  await sftp.connect({ host: 'sftp.example.com', username: 'user', password: 'pass' });
+
+  const files = await sftp.list('/inbox');
+
+  for (const file of files.filter(f => f.name.endsWith('.edi'))) {
+    try {
+      const content = await sftp.get(`/inbox/${file.name}`);
+      const result = transformer.transform(content.toString('utf-8'));
+
+      if (result.validation?.is_valid !== false) {
+        await importToDatabase(result);
+        await sftp.rename(`/inbox/${file.name}`, `/archive/${file.name}`);
+        console.log(`✓ ${file.name} verarbeitet`);
+      } else {
+        await sftp.rename(`/inbox/${file.name}`, `/error/${file.name}`);
+        console.error(`✗ ${file.name} validierung fehlgeschlagen`);
+      }
+    } catch (error) {
+      console.error(`Fehler bei ${file.name}:`, error.message);
+    }
+  }
+
+  await sftp.end();
+}
+
+async function importToDatabase(json) {
+  // Ihre Datenbank-Logik hier
+  console.log('Import:', json.metadata.message_type, json.metadata.reference_number);
+}
+```
+
+### Testdaten generieren
+
+```js
+const {
+  generateTestUTILMD,
+  generateTestMSCONS,
+  generateTestAPERAK
+} = require('edifact-json-transformer');
+
+// Gültige Testnachrichten für Unit-Tests
+const utilmd = generateTestUTILMD({
+  marktlokationId: '99999999999',
+  pruefidentifikator: '44001'
+});
+
+const mscons = generateTestMSCONS({
+  verbrauch: '5000',
+  einheit: 'KWH'
+});
+
+const positiveAck = generateTestAPERAK({ status: 'positive' });
+const negativeAck = generateTestAPERAK({ status: 'negative' });
+
+// In Jest-Tests verwenden
+describe('EDIFACT Processing', () => {
+  it('should parse UTILMD', () => {
+    const result = transformer.transform(utilmd);
+    expect(result.metadata.message_type).toBe('UTILMD');
+    expect(result.body.stammdaten.marktlokationen[0].id).toBe('99999999999');
+  });
+});
+```
+
+Weitere Integrations-Beispiele (REST API, Kafka, Stream-Processing) finden Sie in [docs/INTEGRATION.md](./docs/INTEGRATION.md).
+
 ## Architekturüberblick
 
 ```
@@ -80,6 +215,10 @@ Die Aufteilung ermöglicht eigenständiges Testen, schnelle Wartung und eine ein
 | `isGPKEProcess(edifact)` | Erkennt, ob ein GPKE-Prozess vorliegt |
 | `convertToNeo4jCypher(edifact)` | Liefert vorbereitete Cypher-Statements |
 | `validateAHB(edifact)` | Führt AHB-Validierung aus und liefert Fehler-Report |
+| `generateTestUTILMD(options)` | Erzeugt gültige UTILMD-Testnachricht |
+| `generateTestMSCONS(options)` | Erzeugt gültige MSCONS-Testnachricht |
+| `generateTestAPERAK(options)` | Erzeugt APERAK-Testnachricht (positiv/negativ) |
+| `generateInvalidEdifact(type)` | Erzeugt ungültige Testnachrichten für Error-Tests |
 | `messageTypes` | Referenzdaten der unterstützten Nachrichtentypen |
 | `pruefidentifikatoren` | Mapping von Prüfidentifikatoren auf Beschreibungen |
 | `statusCodes` | Normierte Statuscodes (M, C, R, D, N) |
@@ -103,6 +242,34 @@ npm test        # Jest Tests inkl. Coverage
 ```
 
 Coverage-Reports werden standardmäßig als Text-Output und LCOV erzeugt.
+
+## Häufige Probleme & Lösungen
+
+### "Segment UNH not found"
+- **Ursache:** EDIFACT beginnt nicht mit `UNH` oder enthält falsche Trennzeichen
+- **Lösung:** `edifact.trim()` verwenden, auf `UNH+` am Anfang prüfen
+
+### "AHB validation failed"
+- **Debugging:** `enableAHBValidation: false` temporär setzen
+- **Details:** `result.validation.errors` enthält konkrete Segment-Referenzen
+
+### "Memory overflow bei großen Dateien"
+- **Lösung:** Stream-basierte Verarbeitung (siehe [docs/INTEGRATION.md](./docs/INTEGRATION.md))
+- **Limit:** Max. 10MB pro Nachricht, Batch-Verarbeitung für große Container
+
+Vollständige Troubleshooting-Anleitung: [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md)
+
+## Integration & Best Practices
+
+Detaillierte Anleitungen für typische Szenarien:
+
+- **SFTP-Polling + Datenbank-Import** – Automatischer Import aus Postfächern
+- **REST API für Partner** – Exposing der Transformation als HTTP-Endpoint  
+- **Event-Driven (Kafka)** – Asynchrone Verarbeitung über Message Queues
+- **Batch-Processing** – Memory-effiziente Stream-Verarbeitung großer Dateien
+- **Error-Handling Patterns** – Retry-Logic, Validation, Logging
+
+Siehe [docs/INTEGRATION.md](./docs/INTEGRATION.md) für vollständige Code-Beispiele.
 
 ## Contribution Guide
 

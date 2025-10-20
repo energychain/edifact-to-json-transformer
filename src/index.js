@@ -9,6 +9,12 @@ const {
   convertToNeo4jCypher,
   validateAHB
 } = require('./utils/helpers');
+const {
+  generateTestUTILMD,
+  generateTestMSCONS,
+  generateTestAPERAK,
+  generateInvalidEdifact
+} = require('./utils/testDataGenerator');
 
 module.exports = {
   EdifactTransformer,
@@ -19,5 +25,10 @@ module.exports = {
   validateAHB,
   messageTypes,
   pruefidentifikatoren,
-  statusCodes
+  statusCodes,
+  // Test utilities
+  generateTestUTILMD,
+  generateTestMSCONS,
+  generateTestAPERAK,
+  generateInvalidEdifact
 };

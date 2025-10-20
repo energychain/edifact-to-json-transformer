@@ -1,10 +1,11 @@
 {
   "name": "edifact-json-transformer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Robuste EDIFACT zu JSON Transformation für die deutsche Marktkommunikation (MaKo)",
   "main": "index.js",
   "files": [
     "src",
+    "docs",
     "index.js",
     "README.md",
     "LICENSE"
